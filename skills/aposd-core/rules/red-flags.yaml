@@ -1,0 +1,371 @@
+---
+# APoSD Red Flags Reference
+# Each red flag describes a pattern that likely indicates complexity hiding maintainability issues.
+# Use these as a code review checklist.
+
+red_flags:
+  - id: shallow_module
+    name: Shallow Module
+    severity: high
+    description: Interface is complex relative to the implementation it provides.
+    symptoms:
+      - Interface documentation is longer than the implementation
+      - Each method does very little work
+      - Many helper methods that feel like they should be used by callers
+      - Feel like you're orchestrating internal logic when using this module
+    questions:
+      - What would happen if this interface were twice as powerful?
+      - Could the caller's code be simpler if this module did more?
+      - Is this module hiding its implementation, or just wrapping another module?
+    example_wrong: |
+      # UserRepository is shallow
+      class UserRepository:
+          def get_by_id(self, id):
+              return db.query('SELECT * FROM users WHERE id = ?', id)
+          def get_by_email(self, email):
+              return db.query('SELECT * FROM users WHERE email = ?', email)
+          def create(self, user):
+              return db.insert('users', user)
+    example_right: |
+      # UserRepository is deep - hides SQL, handles caching/validation
+      class UserRepository:
+          def find(self, **filters):
+              # Internally: caching, query building, validation
+              # Caller doesn't care about SQL or db schema
+              ...
+    fixes:
+      - Combine multiple methods that share responsibility
+      - Make the module handle more complex decisions internally
+      - Hide storage details (SQL, ORM, API calls) completely
+      - Consider merging with related modules
+    follow_up_issues:
+      - Often paired with information_leakage or change_amplification
+
+  - id: information_leakage
+    name: Information Leakage
+    severity: high
+    description: Callers must know too much about internal structure or decisions.
+    symptoms:
+      - Caller imports internal types, constants, or submodules
+      - Caller must check storage format or db schema to use this module
+      - Caller receives entity + metadata (e.g., is_cached=True, source='db')
+      - API response mirrors database schema exactly
+    questions:
+      - What would break if the internal storage changed (db→API, SQL→ORM)?
+      - Is the caller aware of implementation detail it shouldn't be?
+      - Could this information be hidden by a more powerful interface?
+    example_wrong: |
+      # Caller knows internal User structure
+      from users.models import User, UserStatus  # Internal type
+      user = repo.get(id)
+      if user.status == UserStatus.PENDING:  # Knows about internal enum
+          ...
+    example_right: |
+      # UserRepository hides all structure
+      user = repo.find_verified(id)  # More powerful, simpler interface
+      if user:  # Repository already filters, caller doesn't need to know status enum
+          ...
+    fixes:
+      - Move internal types behind the interface; expose only through methods
+      - Change interface to express what callers need, not internal structure
+      - Hide storage details (db, ORM, API schema) entirely
+      - Return richer types from fewer methods instead of many thin accessors
+    follow_up_issues:
+      - Often leads to change_amplification when internal structure shifts
+
+  - id: change_amplification
+    name: Change Amplification
+    severity: high
+    description: A single logical change requires modifications in many places.
+    symptoms:
+      - Bug fix touches 5+ files
+      - Renaming one field cascades through layers
+      - Adding one feature requires changes in repository, service, controller, and test
+      - Special case logic spread across multiple modules
+    questions:
+      - How many places would I need to change to do X?
+      - Could this logic be gathered into one module?
+      - Are layers just forwarding data instead of making decisions?
+    example_wrong: |
+      # Change to User.email cascades everywhere
+      # models.py: User model
+      # repository.py: SELECT * FROM users
+      # service.py: user.email
+      # api.py: return {'email': user.email}
+      # The change touches all layers even though it's one concept
+    example_right: |
+      # Repository handles mapping, service hides User type, API returns opaque response
+      # Change to internal storage only touches repository
+      class UserRepository:
+          def find_by_email(self, email):
+              # SQL change stays here
+              ...
+    fixes:
+      - Gather scattered logic into one module
+      - Remove pass-through layers (repository ↔ service ↔ controller)
+      - Let modules make internal decisions instead of forwarding state
+      - Encapsulate special cases
+    related_flags:
+      - shallow_module
+      - information_leakage
+
+  - id: vague_naming
+    name: Vague Naming
+    severity: medium
+    description: Function/class names don't clearly express what they do.
+    symptoms:
+      - Names like `process`, `handle`, `convert`, `data`, `manager`, `util`
+      - Name doesn't hint at purpose (what does `transform` do? to what?)
+      - Hard to describe the function without reading its body
+      - Similar names for different purposes (process_user, process_payment)
+    questions:
+      - If I heard only the name, could I guess what this does?
+      - Could I describe this function's purpose in one clear sentence?
+      - Are there similar-sounding functions that do different things?
+    example_wrong: |
+      def process_data(items):
+          # What kind of processing? Unclear.
+          ...
+      def convert(user):
+          # To what? From what? Unclear.
+          ...
+    example_right: |
+      def filter_active_users(users):
+          # Clear: filters for active status
+          ...
+      def to_api_response(user):
+          # Clear: converts internal User to API format
+          ...
+    fixes:
+      - Use verbs that clearly state the action (filter, map, flatten, validate)
+      - Include the subject and result (user→response, data→formatted_csv)
+      - Break into multiple functions with distinct names if the name is complex
+      - Consider renaming if the name requires a comment
+    follow_up_issues:
+      - Often hides cognitive_load; callers must read code to understand intent
+
+  - id: special_case_mixture
+    name: Special-Case Mixture
+    severity: medium
+    description: General logic mixed with special cases for specific callers.
+    symptoms:
+      - Many if/else branches checking the caller or context
+      - Parameters like `for_admin=True`, `skip_validation=True`
+      - Comments like "in case X, do Y instead"
+      - New callers add new branches instead of using the general case
+    questions:
+      - Why does this logic need to know about its caller?
+      - Could each caller have a simpler, more specific interface?
+      - Is this a general algorithm with exceptions, or multiple algorithms mixed?
+    example_wrong: |
+      def save_user(user, is_admin=False, skip_validation=False):
+          if not skip_validation:
+              validate(user)
+          if is_admin:
+              # Admin-only logic
+              ...
+          else:
+              # Regular user logic
+              ...
+    example_right: |
+      def save_user(user):
+          # Single, validated path
+          validate(user)
+          ...
+      # Admin caller uses different, explicit interface:
+      def save_user_admin_override(user):
+          # Admin-specific logic, clear intent
+          ...
+    fixes:
+      - Split into multiple functions, each with clear purpose
+      - Let the caller choose which interface to use
+      - If truly one algorithm, move special cases into helper modules
+      - Question whether special cases should exist at all
+    related_flags:
+      - cognitive_load
+      - vague_naming
+
+  - id: excessive_configuration
+    name: Excessive Configuration
+    severity: low
+    description: Too many flags/options replacing hard design decisions.
+    symptoms:
+      - Constructor or function signature has 5+ boolean or enum parameters
+      - Config class with 20+ optional fields
+      - Comments like "set this to enable X feature"
+      - Some flag combinations are invalid, not documented
+    questions:
+      - What decision is this flag deferring?
+      - Should this decision be made by the caller, or determined internally?
+      - Could valid configurations be reduced by making hard choices?
+    example_wrong: |
+      cache = Cache(
+          ttl=300,
+          eviction_policy='lru',
+          distributed=True,
+          compression=True,
+          encryption=True,
+          metrics_enabled=True
+      )
+      # Too many decisions pushed to caller
+    example_right: |
+      cache = Cache(ttl=300)
+      # Or two clear, simpler classes:
+      cache_local = LocalCache()
+      cache_distributed = DistributedSecureCache()  # Includes sensible defaults
+    fixes:
+      - Make hard internal decisions; expose only what must be configured
+      - If many options are needed, split into multiple, simpler classes
+      - Document which combinations are valid
+      - Prefer builder or factory patterns if configuration is genuinely needed
+    follow_up_issues:
+      - Often pairs with cognitive_load and shallow_module
+
+  - id: cognitive_load
+    name: Cognitive Load
+    severity: medium
+    description: Too much mental overhead needed to use or understand this module.
+    symptoms:
+      - State machine spread across multiple functions and files
+      - Long conditional chains or nested logic
+      - Function signature with 7+ parameters
+      - Documentation longer than code
+      - Need to trace 3+ files to understand one flow
+    questions:
+      - How many things must I hold in mind to use this correctly?
+      - Could this module be simpler if it made more decisions internally?
+      - Is there a state machine here that should be explicit?
+    example_wrong: |
+      def process_order(order, user, inventory, payment_processor, logger, metrics):
+          # 6 parameters; caller must orchestrate logic
+          if not check_user(user):
+              logger.error(...)
+          if not inventory.has(order.items):
+              raise OutOfStock()
+          if not payment_processor.charge(payment_info):
+              raise PaymentFailed()
+          # etc.
+    example_right: |
+      def place_order(order_request):
+          # Module hides complexity: user check, inventory, payment, logging
+          order = Order.from_request(order_request)
+          order.validate()  # Does all the checks internally
+          return order
+    fixes:
+      - Reduce function parameters (gather related ones into objects)
+      - Push decision logic into the module; simplify caller's code
+      - Use clear abstractions (state machines, enums) for complex flows
+      - Add intermediate functions to hide nested complexity
+    related_flags:
+      - shallow_module
+      - excessive_configuration
+      - vague_naming
+
+  - id: pass_through_abstraction
+    name: Pass-Through Abstraction
+    severity: medium
+    description: Layer that does nothing but forward calls between other layers.
+    symptoms:
+      - Method that just calls the same method on a dependency
+      - Layers (repository → service → controller) that don't add logic
+      - Caller could call the underlying layer directly without loss
+      - No state, no caching, no translation, no validation
+    questions:
+      - Does this layer add any value beyond forwarding?
+      - What would break if we removed this layer?
+      - Could the caller use the underlying layer directly?
+    example_wrong: |
+      # service.py
+      def get_user(self, id):
+          return self.repository.get_user(id)  # Just forwarding
+
+      # controller.py calls service instead of repository
+      user = service.get_user(id)
+    example_right: |
+      # Either merge layers or give service meaningful responsibility:
+      def get_user(self, id):
+          user = repository.find(id)
+          if not user:
+              logger.warning(f"User {id} not found")
+          return user
+    fixes:
+      - Merge the layer with what it calls
+      - Or add real responsibility (validation, transformation, logging)
+      - Question whether you need N layers in the first place
+    related_flags:
+      - shallow_module
+      - change_amplification
+
+  - id: comments_repeat_code
+    name: Comments That Repeat Code
+    severity: low
+    description: Comments state what the code does instead of why it does it.
+    symptoms:
+      - Comments like `x += 1  # increment x`
+      - Comments that become outdated immediately
+      - Comment explains the code instead of explaining design intent
+      - Obvious code followed by unnecessary comments
+    questions:
+      - Would this code be unclear without the comment?
+      - Does the comment explain intent, or just restate what the code does?
+      - Could better naming replace this comment?
+    example_wrong: |
+      # increment counter
+      counter += 1
+
+      # check if user is null
+      if user is None:
+          ...
+    example_right: |
+      # Comments should explain non-obvious intent or constraints
+      # Retry mechanism: if transient error, wait exponentially before retrying
+      # (not: "sleep for 100ms")
+
+      # Assume user exists at this point because we validated in auth middleware
+      # (not: "check if user is null")
+    fixes:
+      - Use clearer naming to eliminate need for comment
+      - If comment needed, explain the "why", not the "what"
+      - Remove comments that duplicate code intent
+      - Add comments only for non-obvious design decisions
+    follow_up_issues:
+      - Often symptom of vague_naming or shallow_module
+
+  - id: unnecessary_error_path_complexity
+    name: Unnecessary Error-Path Complexity
+    severity: medium
+    description: Error handling scattered and complicated instead of defined out of existence.
+    symptoms:
+      - Exception types proliferate (CustomError, UserNotFoundError, ValidationError...)
+      - Try-catch blocks nested or scattered across the codebase
+      - Caller must handle multiple exception types for one operation
+      - Error information is missing (no context, no original exception)
+      - Some errors are swallowed silently, others bubble up unpredictably
+    questions:
+      - Could this error be prevented instead of handled?
+      - Is the caller responsible for handling this, or the module?
+      - Is error information clear enough to debug?
+      - Could fewer exception types handle all cases?
+    example_wrong: |
+      try:
+          user = repository.get_user(id)
+      except UserNotFoundError:
+          user = None
+      except DatabaseError:
+          raise
+      # Caller must know about UserNotFoundError
+    example_right: |
+      user = repository.find_user(id)  # Returns None instead of raising
+      if not user:
+          # Caller decides what to do with absence
+          ...
+    fixes:
+      - Define errors out of existence (return None, use Optional types)
+      - If exceptions needed, keep types minimal and information rich
+      - Handle errors at the source (module validates, not caller)
+      - Document which exceptions can be raised and why
+    related_flags:
+      - information_leakage
+      - shallow_module
+
+# Summary heuristic: if you see 3+ red flags in a module, it's a good refactoring candidate
