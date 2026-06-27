@@ -1,37 +1,36 @@
 ---
-name: aposd-refactor-plan
-description: Plan a refactoring through APoSD lens. No code changes; strategy only. Breaks into PR-sized scopes.
-usage: "/aposd-refactor-plan [module or feature name]"
-aliases:
-  - /aposd-plan
+description: リファクタ計画を APoSD 観点で策定。コード変更なし、戦略のみ。PR サイズに分割。aposd-core スキルを使う。
 ---
 
 # aposd-refactor-plan
 
-Plan a refactoring without writing code. Identifies the root complexity problem, proposes a safe, incremental path forward in PR-sized chunks.
+リファクタをコード変更せず計画します。根本的な複雑性問題を特定し、PR サイズの段階的な進め方を提案します。
 
-## Purpose
+## 対象の決め方
 
-This command is for situations where:
+- 引数がある場合：
+  - `$ARGUMENTS` をモジュール名またはフィーチャー名として扱う
+  - 例：`/aposd-refactor-plan src/services/user.py`
+  - 例：`/aposd-refactor-plan user authentication flow`
+- 引数がない場合：
+  - ユーザーにモジュール名またはフィーチャー名の入力を求める（または最近変更されたモジュールを提案）
 
-- "This module is hard to change and we want to fix it"
-- "Every feature we add requires touching 5 files; how do we fix that?"
-- "We want to refactor, but where do we start?"
+## 実行指針
 
-It does NOT write code or propose major architectural changes. It gives you a step-by-step plan.
+必ず以下のスキルを使ってください。
 
-## Usage
+- `aposd-core` — red-flags、safety-rules、出力形式を参照
 
-```bash
-# Plan refactoring for a module
-/aposd-refactor-plan src/services/user_service.py
+計画策定の順序：
 
-# Plan refactoring for a feature area
-/aposd-refactor-plan "user authentication flow"
-
-# Plan refactoring with additional context
-/aposd-refactor-plan "error handling" --context "too many exception types scattered"
-```
+1. 対象モジュール / フィーチャー を理解
+2. red-flags.yaml から主要な赤旗を特定
+3. Root Cause を分析
+4. 現在の状態（何が機能しているか、何が壊れているか）を文書化
+5. 修正の段階的パス を設計（各 Phase は 1-2 PR 分）
+6. safety-rules をチェック（split without cause、layer defaults、configuration deferral なし）
+7. 各 Phase の risk と test impact を評価
+8. 最後に Success Metrics を定義
 
 ## Output Format
 
@@ -92,105 +91,23 @@ It does NOT write code or propose major architectural changes. It gives you a st
 [If phases depend on each other, describe; if independent, say so]
 
 ## Success Metrics
-[How will you know this refactor helped?]
+[修正がうまくいったことをどう測定するか]
 
 ## Estimated Effort
-[Overall scope: small / medium / large; reasoning]
+[全体スコープ：small / medium / large とその根拠]
 ```
 
-## When to Use
+## 出力形式
 
-- **Planning a refactor before coding** — align on the path first
-- **Presenting a design to a team** — show the step-by-step plan
-- **Breaking large refactors into manageable PRs** — ensures each PR is reviewable
-- **Understanding why a module is hard to change** — see the root cause
+aposd-core の output-format.md を参照してください。
 
-## When NOT to Use
+## 出力言語
 
-- **Already have a refactor in progress** — use `/aposd-pr-review` to check the current changes
-- **Making a quick fix** — refactoring plans are for longer efforts
-- **Scope already decided** — if the team decided to "split into microservices", this might surface concerns
+リポジトリまたはプロンプトの言語に応じて日本語または英語で返してください。
 
-## Example: Planning an Information Leakage Fix
+## 補足
 
-**Input**:
-```bash
-/aposd-refactor-plan src/api/handlers.py
-```
-
-**Output** (abbreviated):
-```
-# APoSD Refactoring Plan: User API Handler
-
-## Root Cause Analysis
-
-### Primary Red Flag: Information Leakage
-- Evidence: Handler imports internal User model and checks user.status directly
-- Impact: Status enum changes require updates in handler and model
-- Why: Handler directly uses domain model instead of transformation layer
-
-## Current State
-### What's Broken
-- PR to change User.status touches handler, service, model, and tests
-- Handler couples API response to internal User structure
-
-## Proposed Path
-
-### Phase 1: Create UserResponse Type
-**Goal**: API returns UserResponse, not raw User
-**Changes**:
-- Add UserResponse class (id, name, email only)
-- Update handler to return UserResponse
-- Add from_user() converter
-**Test Impact**: Handler tests return UserResponse instead of User
-**Risk**: Low; internal change only
-**Before/After**: [Code example]
-
-### Phase 2: Move Status Check to Service
-**Goal**: Handler doesn't know about status enum
-**Changes**:
-- Add is_verified() method to UserService
-- Handler calls service.is_verified() instead of checking status
-- Remove UserStatus import from handler
-**Test Impact**: Service tests update; handler tests simplified
-**Risk**: Low; refactor, no new behavior
-**Before/After**: [Code example]
-
-## Success Metrics
-- PR to change User.status only touches one file (model)
-- Handler tests don't import UserStatus
-- Handler code is 20% shorter (no status checking)
-
-## Estimated Effort
-Medium (2-3 small PRs, 2-3 hours total)
-```
-
-## Output Language
-
-Like `/aposd-pr-review`, responds in your repository's language or prompt language.
-
-- If repo has `.claude/settings.json` or README in Japanese, responds in Japanese
-- Otherwise, responds in English
-
-Override with `--lang ja` or `--lang en`.
-
-## Related Commands
-
-- `/aposd-pr-review` — Review a PR diff (this command is for planning)
-- `/code-review` — General code quality (not design-specific)
-
-## Related Skills
-
-- `aposd-core` — Core APoSD principles and vocabulary
-- `skills/aposd-core/rules/safety-rules.md` — Constraints applied to plans
-- `skills/aposd-core/profiles/python.md` — Python-specific patterns
-- `skills/aposd-core/profiles/typescript.md` — TypeScript-specific patterns
-
-## Design Principles This Command Enforces
-
-1. **Deepen existing modules over creating new ones**
-2. **Avoid broad rewrites; split into PR-sized chunks**
-3. **Don't recommend DDD/Clean Architecture without root cause**
-4. **Measure the actual problem before proposing the solution**
-5. **Make each PR independently reviewable and safe to merge**
-6. **Preserve what works while fixing what's broken**
+- このコマンドはコード変更を生成しません。計画のみ
+- 実装は別途、計画に従って実行する
+- 各 Phase が 1-2 PR に収まることを確認
+- Merge 順序が依存しないか、依存の場合は明記

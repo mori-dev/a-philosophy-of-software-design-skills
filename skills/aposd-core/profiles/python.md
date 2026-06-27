@@ -256,31 +256,37 @@ def process_payment(
 
 **Problem**:
 - Callers choose the behavior
-- 2^5 = 32 possible combinations, many invalid
+- 2^4 = 16 possible combinations, many invalid
 - Logic scattered across conditions
 - New features add more flags
 
 **Fix**:
 ```python
 class PaymentProcessor:
-    def process_regular_payment(self, amount: float, user_id: int) -> bool:
+    def charge(self, amount: float, user_id: int) -> bool:
         """Standard payment flow with fraud check and primary processor"""
         self._check_fraud(user_id)
         return self.primary_processor.charge(amount)
 
-class SubscriptionPaymentProcessor:
-    def process_subscription(self, amount: float, user_id: int) -> bool:
+class SubscriptionPaymentProcessor(PaymentProcessor):
+    def charge(self, amount: float, user_id: int) -> bool:
         """Subscriptions bypass fraud check, use subscription processor"""
         return self.subscription_processor.charge(amount)
 
-class AdminPaymentProcessor:
-    def process_admin_override(self, amount: float, user_id: int) -> bool:
+class AdminPaymentProcessor(PaymentProcessor):
+    def charge(self, amount: float, user_id: int) -> bool:
         """Admins bypass all checks, use primary processor"""
         return self.primary_processor.charge(amount)
 
 # Caller chooses the right processor, not flags
-processor = AdminPaymentProcessor() if user.is_admin else PaymentProcessor()
-processor.process_regular_payment(100, user_id)
+if user.is_subscription:
+    processor = SubscriptionPaymentProcessor()
+elif user.is_admin:
+    processor = AdminPaymentProcessor()
+else:
+    processor = PaymentProcessor()
+
+processor.charge(100, user_id)
 ```
 
 ---

@@ -1,111 +1,80 @@
 ---
-name: aposd-pr-review
-description: Review a PR diff through the lens of APoSD red flags. No code changes; assessment only.
-usage: "/aposd-pr-review"
-aliases: []
+description: APoSD 設計レビュー。現在の diff を APoSD red flags の観点でレビュー。コード変更は提案しない。aposd-core スキルを必ず使う。
 ---
 
 # aposd-pr-review
 
-Review the current diff (staged and unstaged changes) through the lens of A Philosophy of Software Design.
+現在の diff（ステージ・未コミット変更）を A Philosophy of Software Design の観点からレビューします。
 
-## Purpose
+コード変更は提案しません。設計上の赤旗を検出し、ブロッキング（このPRで直す）か非ブロッキング（後続）かを区別して報告します。
 
-This command detects APoSD red flags in code and ranks them by severity and effort. It does NOT propose code changes, only assessment and next steps.
+## 実行指針
 
-## What It Does
+必ず以下のスキルを使ってレビューしてください。
 
-1. **Analyzes the diff** — Reads current git changes
-2. **Detects red flags** — Maps patterns to APoSD violations (shallow module, information leakage, etc.)
-3. **Ranks issues** — Separates blocking (fix in this PR) from non-blocking (address later)
-4. **Avoids broad rewrites** — Refuses to recommend large architectural changes in one PR
-5. **Respects constraints** — Does not recommend DDD, Clean Architecture, or new layers without root cause
+- `aposd-core` — red-flags、safety-rules、出力形式を参照
 
-## Usage
+レビュー順序：
 
-```bash
-/aposd-pr-review
-```
+1. 現在の `git diff HEAD --unified=3` または未コミット変更を取得
+2. 設計レベルでの赤旗を検出（shallow module、information leakage、change amplification など）
+3. 重要度順に ranking
+4. 各フラグについて blocking / non-blocking を判定
+5. safety-rules に違反していないか（broad rewrite、DDD勧め、wrapper濫造など）をチェック
+6. 修正提案は小さく、reviewable に
 
-Reads `git diff HEAD` and produces a review.
+## 対象の決め方
 
-## Output Format
+- 引数がある場合:
+  - `$ARGUMENTS` を優先的に参照。ファイル、差分の説明、レビュー観点があればそれを使う
+- 引数がない場合:
+  - 現在の git diff / 未コミット変更 全体を対象とする
 
-```
-# APoSD Code Review
+## レビュー方針
 
-## Summary
-[High-level description of changes and design impact]
+- Blocking issues：このPRで直すべき、またはブロックすべき設計問題
+- Non-blocking observations：指摘するが、このPRでは修正不要。follow-up PR を示唆
+- 各赤旗について、症状・影響・修正案を明記
+- safety-rules 9 つ をチェック（split without cause、layer defaults、configuration deferral など）
+- DDD/Clean Architecture は根拠なく推奨しない
+- 既存モジュールを深くすることを優先
 
-## Complexity Assessment
+## 出力形式
+
+aposd-core の output-format.md に従ってください。
+
+### Summary
+[変更の設計的影響を 1-3 行で要約]
 
 ### Blocking Issues
-[Issues that should hold this PR]
+[このPRで直すべき赤旗]
 
-**[Red Flag Name]** — `file.py:line_range`
-- Problem: [Specific evidence]
-- Risk: [Why this matters]
-- Suggestion: [Small, reviewable fix]
+各フラグについて：
+- **[Red Flag Name]** — `file:line_range`
+- Problem: [具体的な証拠]
+- Risk: [なぜ重要か]
+- Suggestion: [このPRで実行可能な修正]
 
 ### Non-Blocking Observations
-[Issues to note but don't block this PR]
+[指摘するが、このPRでは不要]
 
-**[Red Flag Name]** — `file.py:line_range`
-- Pattern: [What you see]
-- Follow-up: [Suggested refactoring; can be separate PR]
+各フラグについて：
+- **[Red Flag Name]** — `file:line_range`
+- Pattern: [見えるパターン]
+- Follow-up: [後続PR のトピック]
 
 ### Safety Check
-- Does this PR introduce broad rewrites? [Yes/No]
-- Does this PR defer hard design decisions? [Yes/No]
-- Does this PR recommend DDD/Clean Architecture without justification? [Yes/No]
-- Does this PR create new abstractions without deepening existing ones? [Yes/No]
+各チェック項目に Yes/No + brief reason
 
-## Recommendation
-[Approve / Request Changes / Approve with Follow-Up]
-```
+### Recommendation
+Approve / Request Changes / Approve with Follow-Up
 
-## When to Use
+## 出力言語
 
-- **Before merging a design-critical PR** — especially those touching repositories, services, error handling, API boundaries
-- **To understand the complexity impact of changes** — not just code quality, but maintainability
-- **To check for red flags you might have missed** — provides a second opinion
+リポジトリまたはプロンプトの言語に応じて日本語または英語で返してください。
 
-## When NOT to Use
+## 補足
 
-- **High-urgency bug fix** — use this on the follow-up refactor, not the fix itself
-- **Scope already decided** — if architectural direction is mandated, this skill might surface concerns but won't override decisions
-
-## Safety Rules Applied
-
-This command enforces the rules in `skills/aposd-core/rules/safety-rules.md`:
-
-- Don't split a module just because it's long
-- Don't introduce layers (DDD/repository/service) as default
-- Avoid adding wrapper classes just to "group" code
-- Don't defer hard decisions via configuration
-- Don't use messaging/events to hide coupling
-- Don't proliferate abstraction levels
-- Measure what's broken before refactoring
-- When in doubt, deepen existing modules
-- Avoid scattering error handling
-
-## Output Language
-
-The command detects your repository's language (or prompt language) and responds in that language.
-
-- If the repo has a `.claude/settings.json` or README in Japanese, responds in Japanese
-- Otherwise, responds in English
-
-Override by prefixing: `/aposd-pr-review --lang ja` or `/aposd-pr-review --lang en`
-
-## Related Commands
-
-- `/aposd-refactor-plan` — Plan a refactor without changing code; suitable for follow-up PRs
-- `/code-review` — General code quality review (not design-specific)
-
-## Related Skills
-
-- `aposd-core` — Core APoSD principles, red flags, and vocabulary
-- `skills/aposd-core/rules/red-flags.yaml` — Red flag reference
-- `skills/aposd-core/profiles/python.md` — Python-specific patterns
-- `skills/aposd-core/profiles/typescript.md` — TypeScript-specific patterns
+- 設計観点のレビューなので、スタイル・lint は `/code-review` に任せる
+- テストカバレッジ不足は設計問題に関連する場合のみ言及
+- 赤旗が見つからなければ「設計観点での重大な指摘なし」と明記

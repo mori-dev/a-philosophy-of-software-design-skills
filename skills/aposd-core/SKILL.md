@@ -43,17 +43,20 @@ This skill is NOT a tutorial or summary of APoSD. Instead, it gives Claude Code:
 
 ### Red Flags
 
-This skill watches for these patterns:
+This skill watches for these patterns (see `rules/red-flags.yaml` for full definitions):
 
 - **Shallow module** — interface complex relative to implementation
-- **Information leakage** — callers know too much about internal structure (imports internals, references storage details)
+- **Information leakage** — callers know too much about internal structure
 - **Change amplification** — one logical change scattered across modules
-- **Vague naming** — `data`, `process`, `handle*`, `convert*` (what does it do?)
+- **Vague naming** — intent unclear from function/class names
 - **Special-case mixture** — general logic mixed with special cases for specific callers
 - **Excessive configuration** — too many flags/options replacing hard decisions
-- **Comments that repeat code** — `x += 1  # increment x` instead of addressing non-obviousness
-- **Unnecessary error-path complexity** — try-catch blocks, exception handling scattered instead of defined out of existence
-- **Pass-through abstractions** — layer that does nothing but forward calls (repository ↔ service ↔ controller)
+- **Comments that repeat code** — documentation that restates syntax instead of explaining why
+- **Unnecessary error-path complexity** — exception handling scattered instead of defined out of existence
+- **Pass-through abstractions** — layer that does nothing but forward calls
+- **Temporal decomposition** — code organized by execution order rather than responsibility
+- **Repetition** — same logic duplicated across multiple places
+- **Nonobvious code** — implementation requires deep reading to understand
 
 ## What This Skill Does NOT Do
 

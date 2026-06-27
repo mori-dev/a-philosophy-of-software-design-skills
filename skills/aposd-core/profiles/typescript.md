@@ -131,7 +131,7 @@ function fetchUserData(
   useCache: boolean = true,
   retryOnFailure: boolean = true,
 ) {
-  // 2^8 = 256 possible combinations
+  // 2^7 = 128 possible combinations
   if (includeProfile && includeOrders && !includeSubscription) {
     // specific logic
   } else if (includeAuditLog && !useCache) {
@@ -242,6 +242,27 @@ interface Product {
   availabilityMessage?: string;  // Pre-formatted in API layer
 }
 
+// Conversion class hides storage details
+class ProductResponse implements Product {
+  id: string;
+  name: string;
+  price: number;
+  isAvailable: boolean;
+  availabilityMessage?: string;
+
+  static fromDB(dbRow: any): ProductResponse {
+    const response = new ProductResponse();
+    response.id = dbRow.id;
+    response.name = dbRow.name;
+    response.price = dbRow.price;
+    response.isAvailable = dbRow.inventory_count > 0;
+    response.availabilityMessage = dbRow.warehouse_location
+      ? `Available at: ${dbRow.warehouse_location}`
+      : undefined;
+    return response;
+  }
+}
+
 // Component uses only domain model
 function ProductCard({ product }: { product: Product }) {
   return (
@@ -261,17 +282,7 @@ function ProductCard({ product }: { product: Product }) {
 }
 
 // API layer transforms storage into domain model
-function transformProductFromDB(dbRow: any): Product {
-  return {
-    id: dbRow.id,
-    name: dbRow.name,
-    price: dbRow.price,
-    isAvailable: dbRow.inventory_count > 0,
-    availabilityMessage: dbRow.warehouse_location
-      ? `Available at: ${dbRow.warehouse_location}`
-      : undefined,
-  };
-}
+const product = ProductResponse.fromDB(dbRow);
 ```
 
 ---

@@ -368,4 +368,116 @@ red_flags:
       - information_leakage
       - shallow_module
 
+  - id: temporal_decomposition
+    name: Temporal Decomposition
+    severity: high
+    description: Code organized by execution order rather than logical responsibility. Methods divided across objects based on when they run, not what they do.
+    symptoms:
+      - "init()", "setup()", "process()", "cleanup()" stages in separate classes
+      - Caller orchestrates sequence of calls across multiple objects
+      - State passed from one stage to the next (caller must track it)
+      - "Order matters" implicit in comments or code flow
+    questions:
+      - Could these methods be organized by responsibility instead of execution order?
+      - Is the caller responsible for calling things in the right order?
+      - Would one module doing all these steps be more obvious?
+    example_wrong: |
+      class PaymentInitializer:
+          def verify_user(self, user): ...
+      class PaymentProcessor:
+          def charge(self, amount): ...
+      class PaymentFinalizer:
+          def log_transaction(self, txn): ...
+
+      # Caller orchestrates:
+      init.verify_user(user)
+      processor.charge(amount)
+      finalizer.log_transaction(txn)
+    example_right: |
+      class PaymentService:
+          def process_payment(self, user, amount):
+              # Knows the sequence; caller doesn't
+              self.verify_user(user)
+              self.charge(amount)
+              self.log_transaction(...)
+    fixes:
+      - Gather stages into one module that knows the sequence
+      - Don't split by execution order; split by responsibility
+      - Caller should call one method, not orchestrate multiple objects
+    follow_up_issues:
+      - Often leads to change_amplification (adding a stage requires changes in multiple places)
+
+  - id: repetition
+    name: Repetition
+    severity: high
+    description: Same or similar code duplicated in multiple places. Violates DRY; makes changes ripple.
+    symptoms:
+      - Same logic appears in 2+ functions or classes
+      - "Copy-paste" code with minor variations
+      - Changes to logic require updates in multiple places
+      - Tests for the same logic in multiple places
+    questions:
+      - How many places would I need to update if this logic changed?
+      - Could these similar pieces share one implementation?
+      - Is the duplication intentional (e.g., optimized variants) or accidental?
+    example_wrong: |
+      class UserRepository:
+          def get_active_users(self):
+              users = db.query("SELECT * FROM users")
+              return [u for u in users if u.status == 'active']
+
+      class OrderRepository:
+          def get_recent_orders(self):
+              orders = db.query("SELECT * FROM orders")
+              return [o for o in orders if o.created_at > cutoff]  # Same filtering pattern
+    example_right: |
+      class Repository:
+          def filter(self, items, predicate):
+              return [item for item in items if predicate(item)]
+
+      class UserRepository(Repository):
+          def get_active_users(self):
+              users = db.query("SELECT * FROM users")
+              return self.filter(users, lambda u: u.status == 'active')
+    fixes:
+      - Extract common logic into a shared method or class
+      - Create a utility function for repeated patterns
+      - Consider a helper class or mixin to reduce duplication
+      - Ask if the duplication is truly intentional
+    related_flags:
+      - change_amplification
+      - shallow_module
+
+  - id: nonobvious_code
+    name: Nonobvious Code
+    severity: medium
+    description: Code that requires deep reading to understand. Intent is not obvious from syntax alone.
+    symptoms:
+      - Complex conditional logic that's hard to parse
+      - Clever algorithm without explanation
+      - Side effects hidden in function calls
+      - Mutation of shared state in non-obvious ways
+      - Magic numbers or values without context
+    questions:
+      - Would someone reading this code understand it in 10 seconds?
+      - Could a comment explaining "why" reduce cognitive load?
+      - Is the non-obviousness necessary, or could it be simpler?
+      - Could a clearer variable name or function name help?
+    example_wrong: |
+      # What does this do? Why?
+      result = (x ^ y) & 0xFF if (x > 100 and not y) else z << 2
+    example_right: |
+      # Clear intent
+      if is_overflow(x) and is_empty(y):
+          result = mask_low_byte(x ^ y)
+      else:
+          result = shift_left_by_two(z)
+    fixes:
+      - Rename variables to express intent
+      - Break complex expressions into named intermediate values
+      - Extract complex logic into a clearly-named function
+      - Add a comment explaining the "why" if algorithm is inherently complex
+    follow_up_issues:
+      - Often pairs with cognitive_load
+
 # Summary heuristic: if you see 3+ red flags in a module, it's a good refactoring candidate
