@@ -1,6 +1,154 @@
-# A Philosophy of Software Design - Claude Code Skills
+# A Philosophy of Software Design — Claude Code Integration
 
-These code skills are based on John Ousterhout's book "A Philosophy of Software Design". They provide practical guidance for writing simple, maintainable code that minimizes complexity.
+Operationalizes "A Philosophy of Software Design" by John Ousterhout for Claude Code to detect design complexity sources, assess their impact, and plan safe incremental improvements.
+
+## Quick Start
+
+This repository provides two Claude Code commands:
+
+1. **`/aposd-pr-review`** — Review a PR diff for design problems (shallow modules, information leakage, change amplification, etc.)
+2. **`/aposd-refactor-plan`** — Plan a refactoring step-by-step without writing code
+
+Both commands use the `aposd-core` skill, which contains red flag definitions, safety rules, and templates for both Python and TypeScript.
+
+### Installation
+
+```bash
+# Copy to your Claude Code config
+cp -r skills/aposd-core ~/.claude/skills/aposd-core
+cp commands/aposd-*.md ~/.claude/commands/
+
+# Test it
+/aposd-pr-review
+```
+
+For detailed setup and usage, see [Setup and Usage](#setup-and-usage) below.
+
+---
+
+## Setup and Usage
+
+### Installation
+
+#### Prerequisites
+- Claude Code (CLI, desktop app, or web) with command support
+- Git repository with code to review
+
+#### Option 1: Global Installation (Recommended)
+
+```bash
+# Clone or download this repository
+git clone https://github.com/mori-dev/a-philosophy-of-software-design-skills.git
+cd a-philosophy-of-software-design-skills
+
+# Copy to your Claude config
+cp -r skills/aposd-core ~/.claude/skills/aposd-core
+cp commands/aposd-*.md ~/.claude/commands/
+
+# Verify
+ls ~/.claude/commands/aposd-*.md  # Should show 2 files
+ls ~/.claude/skills/aposd-core/SKILL.md  # Should exist
+```
+
+#### Option 2: Project-Local Installation
+
+```bash
+# In your project repo
+mkdir -p .claude/commands .claude/skills
+cp -r <repo>/skills/aposd-core .claude/skills/
+cp <repo>/commands/aposd-*.md .claude/commands/
+```
+
+After installation, use `/aposd-pr-review` and `/aposd-refactor-plan` in Claude Code.
+
+---
+
+### Command 1: `/aposd-pr-review`
+
+**Purpose**: Review a PR diff through the APoSD lens. Detects red flags, ranks by severity, distinguishes blocking from non-blocking issues.
+
+**When to use**:
+- Before merging a design-critical PR
+- To understand complexity impact of changes
+- To check for red flags you might have missed
+
+**Examples**:
+
+```
+/aposd-pr-review
+                    # Review all current git changes
+
+/aposd-pr-review src/services/user.py
+                    # Review specific file
+
+/aposd-pr-review "user auth flow" --lang ja
+                    # With context and language override
+```
+
+**Output includes**:
+- **Summary**: High-level design impact
+- **Blocking Issues**: Fix in this PR or hold merge
+- **Non-Blocking Observations**: Suggestions for follow-up
+- **Safety Check**: Broad rewrite detection, DDD recommendations, etc.
+- **Recommendation**: Approve / Request Changes / Approve with Follow-Up
+
+**Checks for**:
+- Shallow modules (simple interface, simple implementation)
+- Information leakage (caller sees internal structure)
+- Change amplification (1 change → 5+ files affected)
+- Vague naming, special-case mixture, excessive configuration
+- Error-path complexity, pass-through abstractions
+- Temporal decomposition, repetition, nonobvious code
+
+**Will NOT recommend**:
+- Splitting modules just because they're long
+- DDD/Clean Architecture without root cause
+- Creating wrapper classes to "group" code
+- Proliferating abstraction levels
+
+---
+
+### Command 2: `/aposd-refactor-plan`
+
+**Purpose**: Plan a refactoring step-by-step without writing code. Breaks work into PR-sized chunks with risk assessment.
+
+**When to use**:
+- Before starting a major refactor
+- When presenting a strategy to the team
+- To break large refactors into reviewable PRs
+- To understand why a module is hard to change
+
+**Examples**:
+
+```
+/aposd-refactor-plan src/services/user.py
+                    # Plan refactoring for a module
+
+/aposd-refactor-plan "error handling"
+                    # Plan for a concern area
+
+/aposd-refactor-plan user_service.py --lang ja
+                    # With language override
+```
+
+**Output includes**:
+- **Root Cause Analysis**: Primary red flag and why it matters
+- **Current State**: What works well, what's broken
+- **Proposed Path**: Phase-by-phase refactoring plan
+  - Each phase is 1-2 PR-sized chunks
+  - Goal, concrete changes, test impact, risk assessment
+  - Before/after code examples
+- **Alternatives**: Why other approaches were rejected
+- **Success Metrics**: How to measure if the refactor worked
+- **Estimated Effort**: Small / Medium / Large
+
+**Does NOT**:
+- Write code or generate patches
+- Recommend major architectural changes
+- Suggest DDD/Clean Architecture defaults
+- Create new layers without justification
+
+---
 
 ## Core Philosophy
 
