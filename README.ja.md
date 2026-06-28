@@ -4,12 +4,13 @@ John Ousterhout の『A Philosophy of Software Design』をベースに Claude C
 
 ## クイックスタート
 
-このリポジトリで提供される 2 つのコマンド：
+このリポジトリで提供される 3 つのコマンド：
 
 1. **`/aposd-pr-review`** — PR や差分をレビュー。浅いモジュール、情報漏洩、変更波及など設計の問題を指摘
-2. **`/aposd-refactor-plan`** — リファクタの計画を立てる。コード生成はなし、段階的な改善戦略のみ
+2. **`/aposd-review`** — リポジトリ全体またはモジュールをスキャン。継続的に設計問題を検出
+3. **`/aposd-refactor-plan`** — リファクタの計画を立てる。コード生成はなし、段階的な改善戦略のみ
 
-どちらも `aposd-core` というスキルを使用。Red flag の定義、安全ルール、Python/TypeScript の言語別テンプレートが含まれています。
+どれも `aposd-core` というスキルを使用。Red flag の定義、安全ルール、Python/TypeScript の言語別テンプレートが含まれています。
 
 ### インストール
 
@@ -109,7 +110,53 @@ cp <このリポジトリ>/commands/aposd-*.md .claude/commands/
 
 ---
 
-### コマンド 2: `/aposd-refactor-plan`
+### コマンド 2: `/aposd-review`
+
+**何をするのか**: リポジトリ全体またはモジュール単位で、設計上の問題を継続的に検出します。
+
+**どのような場合に使うか**:
+- コードベースの健全性を定期的に監視したい
+- リファクタの優先順位をつけたい
+- 複雑なコードベースの問題の原因を理解したい
+- どのモジュールが変更しづらくなっているか知りたい
+
+**使い方**:
+
+```
+/aposd-review
+                    # リポジトリ全体をスキャン
+
+/aposd-review src/services
+                    # 特定ディレクトリをスキャン
+
+/aposd-review src/services/user.py src/api/handlers.py
+                    # 特定ファイルをスキャン
+
+/aposd-review src/services ./domain
+                    # ディレクトリとファイルの混合指定
+```
+
+**出力に含まれるもの**:
+- **Summary**: コードベース全体の設計状態
+- **Red Flags Found**: 検出された設計問題を重要度順に列挙
+- **Cross-Module Concerns**: モジュール間の依存関係と情報漏洩
+- **Safety Check**: 大幅な設計変更の必要性、レイアーの問題
+- **Recommendation**: 改善の優先順位と次のステップ
+
+**対象**:
+- ディレクトリツリー全体、または特定ファイル
+- ファイル間の依存・情報フロー
+- 言語別パターン（Python、TypeScript など）
+- 設計構造とレイアー
+
+**生成しないもの**:
+- PR レベルのコードレビュー（それは `/aposd-pr-review`）
+- コード
+- 根拠なし大規模な建築設計変更
+
+---
+
+### コマンド 3: `/aposd-refactor-plan`
 
 **何をするのか**: リファクタの具体的な改善計画を立てる。何をどのような順序で直すか、各段階でのリスクはどうか、を段階的に示します。
 

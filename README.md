@@ -4,12 +4,13 @@ Operationalizes "A Philosophy of Software Design" by John Ousterhout for Claude 
 
 ## Quick Start
 
-This repository provides two Claude Code commands:
+This repository provides three Claude Code commands:
 
-1. **`/aposd-pr-review`** — Review a PR diff for design problems (shallow modules, information leakage, change amplification, etc.)
-2. **`/aposd-refactor-plan`** — Plan a refactoring step-by-step without writing code
+1. **`/aposd-pr-review`** — Review a PR diff or branch for design problems (shallow modules, information leakage, change amplification, etc.)
+2. **`/aposd-review`** — Scan a whole repository or module for design issues
+3. **`/aposd-refactor-plan`** — Plan a refactoring step-by-step without writing code
 
-Both commands use the `aposd-core` skill, which contains red flag definitions, safety rules, and templates for both Python and TypeScript.
+All commands use the `aposd-core` skill, which contains red flag definitions, safety rules, and templates for both Python and TypeScript.
 
 ### Installation
 
@@ -108,7 +109,53 @@ After installation, use `/aposd-pr-review` and `/aposd-refactor-plan` in Claude 
 
 ---
 
-### Command 2: `/aposd-refactor-plan`
+### Command 2: `/aposd-review`
+
+**Purpose**: Scan a repository or module for design issues. Detects red flags across the entire codebase, checks cross-module concerns, and prioritizes improvements.
+
+**When to use**:
+- Ongoing code health monitoring (weekly or monthly)
+- Before starting a refactoring initiative
+- To understand design bottlenecks in a large codebase
+- To identify which modules are causing friction
+
+**Examples**:
+
+```
+/aposd-review
+                    # Scan entire repository
+
+/aposd-review src/services
+                    # Scan specific directory
+
+/aposd-review src/services/user.py src/api/handlers.py
+                    # Scan specific files
+
+/aposd-review src/services ./domain
+                    # Mix directories and files
+```
+
+**Output includes**:
+- **Summary**: Overall design health of the codebase
+- **Red Flags Found**: All detected design issues, ranked by severity
+- **Cross-Module Concerns**: How modules interact and leak information
+- **Safety Check**: Whether broad rewrite is needed, layering issues
+- **Recommendation**: Prioritized improvements and next steps
+
+**Scope**:
+- Full directory tree or specific files
+- Cross-file dependencies and information flow
+- Language-specific patterns (Python, TypeScript, etc.)
+- Design structure and layering
+
+**Does NOT**:
+- Provide PR-level code review (use `/aposd-pr-review` for that)
+- Write code
+- Recommend architectural rewrites without strong evidence
+
+---
+
+### Command 3: `/aposd-refactor-plan`
 
 **Purpose**: Plan a refactoring step-by-step without writing code. Breaks work into PR-sized chunks with risk assessment.
 
