@@ -19,35 +19,46 @@ description: リファクタ計画を APoSD 観点で策定。コード変更な
 
 必ず以下のスキルを使ってください。
 
-- `aposd-core` — red-flags、safety-rules、出力形式を参照
+- `aposd-core` — red-flags、safety-rules、scoring、出力形式を参照
+  - `rules/scoring.md` を必ず読み、Health Score・診断チェーン・Mermaid 依存グラフを適用する
 
 計画策定の順序：
 
 1. 対象モジュール / フィーチャー を理解
 2. red-flags.yaml から主要な赤旗を特定
-3. Root Cause を分析
-4. 現在の状態（何が機能しているか、何が壊れているか）を文書化
-5. 修正の段階的パス を設計（各 Phase は 1-2 PR 分）
-6. safety-rules をチェック（split without cause、layer defaults、configuration deferral なし）
-7. 各 Phase の risk と test impact を評価
-8. 最後に Success Metrics を定義
+3. Root Cause を診断チェーン（Symptom → Root cause → Consequence）で分析し、red-flag id・APoSD 章引用・Confidence を付す（scoring.md §3,§4）
+4. 現在の状態（何が機能しているか、何が壊れているか）を文書化し、現状アーキテクチャを Mermaid 依存グラフで図示（scoring.md §6）
+5. 現在の Design Health を算出し、各 Phase 完了後の projected score を見積もる（scoring.md §1）
+6. 修正の段階的パス を設計（各 Phase は 1-2 PR 分）。各 Phase に before/after を付す（scoring.md §7）
+7. safety-rules をチェック（split without cause、layer defaults、configuration deferral なし）
+8. 各 Phase の risk と test impact を評価し、目標アーキテクチャを Mermaid で図示
+9. 最後に Success Metrics を定義
 
 ## Output Format
 
 ```
 # APoSD Refactoring Plan: [Module/Feature]
 
+## Target
+- File(s): [対象ファイル]
+- Scope: [問題のある側面]
+- Design Health (current): N / 100 (grade) — projected after plan: N
+
 ## Root Cause Analysis
 
 ### Primary Red Flag: [Name]
-- Evidence: [What symptom points to this]
-- Impact: [How this harms maintainability]
-- Why it happened: [Design decision or lack thereof]
+[red-flag: <id> · <章ファイル> · Confidence: <H/M/L>]
+- Symptom: [観測できる証拠]
+- Root cause: [そうなった設計判断・欠落]
+- Consequence: [保守性のコスト／誘発する赤旗]
 
 ### Secondary Red Flags
-[Other related red flags]
+[関連する赤旗と、Primary との関係]
 
 ## Current State
+
+### Architecture (before)
+[Mermaid 依存グラフ。現状の形と問題のある辺を図示]
 
 ### What Works Well
 [Aspects to preserve]
@@ -57,19 +68,23 @@ description: リファクタ計画を APoSD 観点で策定。コード変更な
 
 ## Proposed Path
 
-### Phase 1: [Scope Name]
+### Phase 1: [Scope Name] (PR count: 1-2)
 **Goal**: [Specific, measurable change]
+**Health delta**: N → N（この Phase 完了後）
 **Changes**:
 - [Concrete change 1]
 - [Concrete change 2]
 **Test Impact**: [Which tests update; why]
 **Risk**: [Will this break existing callers? No/Low/Medium with mitigation]
-**Before/After**: [Code example showing improvement]
+**Before/After**: [改善を示す最小コード例]
 
-### Phase 2: [Next Scope]
+### Phase 2: [Next Scope] (PR count: 1-2)
 [Same structure]
 
 [Additional phases as needed]
+
+### Architecture (after)
+[Mermaid 依存グラフ。目標の形。問題のある辺が消えている]
 
 ## Alternatives Considered
 

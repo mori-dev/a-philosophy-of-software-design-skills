@@ -34,6 +34,20 @@ Design emerges through iteration, not upfront planning:
 
 **Balance**: Design abstractions incrementally, not features incrementally
 
+### 3. Decide What Matters
+(Added in the 2nd edition.) Good design separates what is important from what is
+not, and organizes the system around the few things that matter.
+
+- Most entities in a design are not important; a small number are.
+- The important things should be few, central, and made obvious — the rest should
+  be pushed out of sight so they do not add to cognitive load.
+- A good abstraction is largely an act of deciding what matters: the interface
+  surfaces the important aspects and hides the unimportant ones.
+
+**In review**: ask "what are the few things a reader must understand here, and does
+the design make exactly those things prominent?" A design that gives equal weight to
+everything (or buries the key idea among incidental detail) has not decided what matters.
+
 ## Design Process Steps
 
 ### For New Module/Class
@@ -131,6 +145,26 @@ Design emerges through iteration, not upfront planning:
 - Good code needs fewer comments
 - But some things can't be expressed in code
 - Use both: clear code + strategic comments
+
+## Designing for Performance
+(Expanded in the 2nd edition, Ch 20.) Performance and simplicity are usually
+compatible; the goal is the middle ground between micro-optimizing everything and
+ignoring performance entirely.
+
+- **Do not optimize every statement.** Tuning code that does not matter slows
+  development and adds complexity for no gain.
+- **Avoid "death by a thousand cuts".** Many small inefficiencies scattered through
+  the code can add up to a slow system that has no single hot spot to fix. The defense
+  is design, not late tuning.
+- **Design for natural efficiency.** Prefer designs that are clean *and* inherently
+  efficient — fewer, deeper layers and simpler data paths are usually both. A simpler
+  design often has fewer special cases and less work to do.
+- **Measure before optimizing.** When you do tune, measure first to find the real
+  critical path, change it, and measure again. Keep the critical path simple.
+
+**In review**: flag a performance worry only when there is a plausible, measured (or
+clearly reasoned) hot path — not on speculation. Conversely, note when a design choice
+quietly spreads small costs everywhere.
 
 ## Common Patterns
 

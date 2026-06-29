@@ -2,12 +2,37 @@
 # APoSD Red Flags Reference
 # Each red flag describes a pattern that likely indicates complexity hiding maintainability issues.
 # Use these as a code review checklist.
+#
+# Provenance (verified against "A Philosophy of Software Design", Ousterhout):
+#   - `book_red_flag: true`  → one of the 14 named red flags in the book's
+#     "Summary of Red Flags". The `book_ref` field gives the 1st-edition chapter.
+#   - `book_red_flag: false` → a detection pattern this skill adds. Two of these
+#     (change_amplification, cognitive_load) are the book's *symptoms of
+#     complexity* from Chapter 2, not red flags; the others are derived checks.
+# The 14 canonical red flags: shallow_module, information_leakage,
+# temporal_decomposition, overexposure, pass_through_abstraction, repetition,
+# special_case_mixture, conjoined_methods, comments_repeat_code,
+# implementation_doc_contaminates_interface, vague_naming, hard_to_pick_name,
+# hard_to_describe, nonobvious_code.
+#
+# Avoiding false positives (the book stresses that any principle can be overdone):
+# many flags carry a `not_a_red_flag_when` field listing cases where the pattern is
+# legitimate and must NOT be reported. During review, flag only the AVOIDABLE
+# instance, weight severity by how exposed the code is (public API > internal), and
+# set Confidence: Low when a flag is a hint (hard_to_pick_name, hard_to_describe)
+# rather than a defect. Do not report a finding that matches a `not_a_red_flag_when`.
 
 red_flags:
   - id: shallow_module
     name: Shallow Module
     severity: high
+    book_red_flag: true
+    book_ref: "Ch 4.6"
     description: Interface is complex relative to the implementation it provides.
+    not_a_red_flag_when:
+      - The thin module sits at a genuine abstraction boundary (e.g. an adapter isolating an external API or library)
+      - The module is small because the problem is small, and a deeper one would just bundle unrelated things
+      - Depth is constrained by an external contract you do not own (framework interface, protocol)
     symptoms:
       - Interface documentation is longer than the implementation
       - Each method does very little work
@@ -44,7 +69,13 @@ red_flags:
   - id: information_leakage
     name: Information Leakage
     severity: high
+    book_red_flag: true
+    book_ref: "Ch 5.2"
     description: Callers must know too much about internal structure or decisions.
+    not_a_red_flag_when:
+      - The shared type IS the intended contract (a DTO/value object deliberately designed for callers), not an internal detail
+      - The information is inherent to the domain and every reasonable design would expose it
+      - Two modules legitimately share a concept defined in one well-named place (that is reuse, not leakage)
     symptoms:
       - Caller imports internal types, constants, or submodules
       - Caller must check storage format or db schema to use this module
@@ -76,7 +107,12 @@ red_flags:
   - id: change_amplification
     name: Change Amplification
     severity: high
+    book_red_flag: false  # Symptom of complexity (Ch 2), not one of the named red flags
     description: A single logical change requires modifications in many places.
+    not_a_red_flag_when:
+      - The change is inherently cross-cutting (a new user-visible field legitimately touches model, API, and UI)
+      - The touched files are tests plus their single subject (expected, not amplification)
+      - Gathering the logic into one place would create a worse coupling than the spread
     symptoms:
       - Bug fix touches 5+ files
       - Renaming one field cascades through layers
@@ -112,6 +148,8 @@ red_flags:
   - id: vague_naming
     name: Vague Naming
     severity: medium
+    book_red_flag: true
+    book_ref: "Ch 14.3"
     description: Function/class names don't clearly express what they do.
     symptoms:
       - Names like `process`, `handle`, `convert`, `data`, `manager`, `util`
@@ -147,6 +185,8 @@ red_flags:
   - id: special_case_mixture
     name: Special-Case Mixture
     severity: medium
+    book_red_flag: true
+    book_ref: "Ch 9.5"  # "Special-General Mixture" in the book
     description: General logic mixed with special cases for specific callers.
     symptoms:
       - Many if/else branches checking the caller or context
@@ -188,7 +228,12 @@ red_flags:
   - id: excessive_configuration
     name: Excessive Configuration
     severity: low
+    book_red_flag: false  # Derived check; relates to "define errors/special cases out of existence" and configuration parameters (Ch 10, 19.5)
     description: Too many flags/options replacing hard design decisions.
+    not_a_red_flag_when:
+      - The options reflect genuine external requirements the module cannot decide for the caller (e.g. real deployment differences)
+      - Each option has a sensible default and the common call uses none of them
+      - The configuration is a small, validated set where invalid combinations are made unrepresentable
     symptoms:
       - Constructor or function signature has 5+ boolean or enum parameters
       - Config class with 20+ optional fields
@@ -224,6 +269,7 @@ red_flags:
   - id: cognitive_load
     name: Cognitive Load
     severity: medium
+    book_red_flag: false  # Symptom of complexity (Ch 2), not one of the named red flags
     description: Too much mental overhead needed to use or understand this module.
     symptoms:
       - State machine spread across multiple functions and files
@@ -264,7 +310,13 @@ red_flags:
   - id: pass_through_abstraction
     name: Pass-Through Abstraction
     severity: medium
+    book_red_flag: true
+    book_ref: "Ch 7.1"  # "Pass-Through Method" in the book
     description: Layer that does nothing but forward calls between other layers.
+    not_a_red_flag_when:
+      - The forwarding method is a stable public/API facade deliberately decoupling callers from a volatile implementation
+      - It is a required interface implementation (adapter, port) where forwarding is the contract
+      - It adds a real concern even if thin (auth check, transaction boundary, telemetry)
     symptoms:
       - Method that just calls the same method on a dependency
       - Layers (repository → service → controller) that don't add logic
@@ -299,6 +351,8 @@ red_flags:
   - id: comments_repeat_code
     name: Comments That Repeat Code
     severity: low
+    book_red_flag: true
+    book_ref: "Ch 13.2"
     description: Comments state what the code does instead of why it does it.
     symptoms:
       - Comments like `x += 1  # increment x`
@@ -334,6 +388,7 @@ red_flags:
   - id: unnecessary_error_path_complexity
     name: Unnecessary Error-Path Complexity
     severity: medium
+    book_red_flag: false  # Derived check grounded in "Define errors out of existence" (Ch 10)
     description: Error handling scattered and complicated instead of defined out of existence.
     symptoms:
       - Exception types proliferate (CustomError, UserNotFoundError, ValidationError...)
@@ -371,12 +426,14 @@ red_flags:
   - id: temporal_decomposition
     name: Temporal Decomposition
     severity: high
+    book_red_flag: true
+    book_ref: "Ch 5.3"
     description: Code organized by execution order rather than logical responsibility. Methods divided across objects based on when they run, not what they do.
     symptoms:
-      - "init()", "setup()", "process()", "cleanup()" stages in separate classes
+      - Stages like init(), setup(), process(), cleanup() split into separate classes
       - Caller orchestrates sequence of calls across multiple objects
       - State passed from one stage to the next (caller must track it)
-      - "Order matters" implicit in comments or code flow
+      - Order dependence is implicit in comments or code flow
     questions:
       - Could these methods be organized by responsibility instead of execution order?
       - Is the caller responsible for calling things in the right order?
@@ -410,10 +467,16 @@ red_flags:
   - id: repetition
     name: Repetition
     severity: high
+    book_red_flag: true
+    book_ref: "Ch 9.4"
     description: Same or similar code duplicated in multiple places. Violates DRY; makes changes ripple.
+    not_a_red_flag_when:
+      - The similarity is coincidental and the two copies will evolve independently (forcing a shared abstraction would couple them wrongly)
+      - Removing the duplication needs a parameter-heavy or conditional abstraction harder to read than the repetition
+      - The repeated lines are trivial boilerplate the language/framework requires
     symptoms:
       - Same logic appears in 2+ functions or classes
-      - "Copy-paste" code with minor variations
+      - Copy-pasted code with minor variations
       - Changes to logic require updates in multiple places
       - Tests for the same logic in multiple places
     questions:
@@ -451,6 +514,8 @@ red_flags:
   - id: nonobvious_code
     name: Nonobvious Code
     severity: medium
+    book_red_flag: true
+    book_ref: "Ch 18.2"
     description: Code that requires deep reading to understand. Intent is not obvious from syntax alone.
     symptoms:
       - Complex conditional logic that's hard to parse
@@ -480,4 +545,174 @@ red_flags:
     follow_up_issues:
       - Often pairs with cognitive_load
 
+  - id: overexposure
+    name: Overexposure
+    severity: medium
+    book_red_flag: true
+    book_ref: "Ch 5.7"
+    description: The API forces callers to learn about rarely-used or internal features in order to use common ones.
+    symptoms:
+      - Common operations require passing options that only matter for edge cases
+      - Caller must understand an internal mechanism (mode, strategy, flags) to do the simple thing
+      - The "hello world" path of the API is not the shortest path
+      - Frequently-used and rarely-used features share one entry point
+    questions:
+      - Is the common case the simplest case to call?
+      - Does the caller have to know about a feature they will never use?
+      - Could the rarely-used capability move behind a separate, optional interface?
+    example_wrong: |
+      # Caller must always supply retry/encoding details just to fetch
+      def fetch(url, *, retries, backoff, encoding, verify_tls, proxy):
+          ...
+      data = fetch(url, retries=0, backoff=0, encoding="utf-8", verify_tls=True, proxy=None)
+    example_right: |
+      # Common case is trivial; rare options live on a separate path
+      data = fetch(url)
+      # Advanced callers opt in explicitly:
+      data = fetch(url, options=FetchOptions(retries=3, proxy=p))
+    fixes:
+      - Make the common case callable with the fewest arguments
+      - Move rarely-used parameters into an optional options object or a separate method
+      - Provide sensible internal defaults instead of forcing the caller to choose
+    related_flags:
+      - shallow_module
+      - excessive_configuration
+
+  - id: conjoined_methods
+    name: Conjoined Methods
+    severity: medium
+    book_red_flag: true
+    book_ref: "Ch 9.8"
+    description: Two methods are so interdependent that you cannot understand one without reading the other.
+    symptoms:
+      - Reading method A requires jumping to method B to follow the logic
+      - State or invariants are shared implicitly between the two methods
+      - A change in one method almost always forces a change in the other
+      - The split was made to shorten a method, not to create an independent abstraction
+    questions:
+      - Can each method be understood on its own, given only its signature and comment?
+      - Was this method extracted to reduce length, or because it is a real abstraction?
+      - Do the two methods always change together?
+    example_wrong: |
+      # process() is meaningless without _finish(); they share hidden state
+      def process(self, items):
+          self._buffer = []
+          for i in items:
+              self._buffer.append(transform(i))
+          self._finish()  # caller of process can't reason about it without reading _finish
+      def _finish(self):
+          commit(self._buffer)
+          self._buffer = None
+    example_right: |
+      # One cohesive method you can understand top to bottom
+      def process(self, items):
+          buffer = [transform(i) for i in items]
+          commit(buffer)
+    fixes:
+      - Rejoin the methods if the split only existed to reduce length
+      - If a split is warranted, make each side a real abstraction with no shared hidden state
+      - Pass shared data as explicit parameters/return values instead of instance state
+    related_flags:
+      - shallow_module
+      - temporal_decomposition
+
+  - id: implementation_doc_contaminates_interface
+    name: Implementation Documentation Contaminates Interface
+    severity: medium
+    book_red_flag: true
+    book_ref: "Ch 13.5"
+    description: Interface documentation describes implementation details the caller does not need, leaking internals into the contract.
+    symptoms:
+      - A method's docstring explains how it works internally, not just what it does
+      - Interface comments name private helpers, data structures, or algorithms
+      - Caller-facing docs change whenever the implementation changes
+      - Reader must understand the implementation to understand the interface comment
+    questions:
+      - Does this interface comment describe what the caller needs, or how the code works?
+      - Would this comment have to change if I rewrote the implementation without changing behavior?
+      - Are implementation notes mixed into the same comment as the contract?
+    example_wrong: |
+      def get_user(id):
+          """Look up the user by binary-searching the in-memory index array,
+          falling back to a SELECT on the users table if the cache is cold."""
+          ...
+    example_right: |
+      def get_user(id):
+          """Return the User with the given id, or None if no such user exists."""
+          # (Implementation notes about caching live as separate inside-the-body comments.)
+          ...
+    fixes:
+      - Keep interface comments to what the caller needs (inputs, outputs, side effects, errors)
+      - Move implementation notes into the method body, separate from the interface comment
+      - Document at the level of abstraction the caller works at
+    related_flags:
+      - information_leakage
+      - comments_repeat_code
+
+  - id: hard_to_pick_name
+    name: Hard to Pick Name
+    severity: low
+    book_red_flag: true
+    book_ref: "Ch 14.3"
+    description: Difficulty finding a simple, precise name for a variable or method hints that the underlying entity lacks a clean design.
+    symptoms:
+      - The best name you can find is generic (data, info, manager, helper) or a vague compound
+      - The name needs "And"/"Or" because the entity does more than one thing
+      - You keep renaming it because no name fits
+      - A clear name would require several words to be accurate
+    questions:
+      - Is it hard to name because the entity has more than one responsibility?
+      - Would splitting or merging the entity make a clean name obvious?
+      - Does the awkward name point at an awkward abstraction?
+    example_wrong: |
+      # No good name exists because it does two unrelated things
+      def handle_user_data_and_notify(user): ...
+    example_right: |
+      # Each entity has one job, so each name is obvious
+      def save_user(user): ...
+      def notify_user(user): ...
+    fixes:
+      - Treat naming difficulty as a design signal, not just a wording problem
+      - Split entities that resist a single clear name
+      - Reconsider the abstraction so a precise one- or two-word name fits
+    related_flags:
+      - vague_naming
+      - special_case_mixture
+
+  - id: hard_to_describe
+    name: Hard to Describe
+    severity: low
+    book_red_flag: true
+    book_ref: "Ch 15.3"
+    description: If a simple yet complete comment for a method or variable is hard to write, the thing being described is probably too complex or poorly defined.
+    symptoms:
+      - The interface comment grows long and still feels incomplete
+      - Describing the method requires enumerating special cases and exceptions
+      - The comment needs many "unless"/"except when" qualifications
+      - You cannot state the method's purpose in one clear sentence
+    questions:
+      - Can I describe this in one or two simple sentences? If not, why not?
+      - Are the special cases I keep listing a sign the abstraction is wrong?
+      - Would a deeper or more general design be easier to describe?
+    example_wrong: |
+      # Comment must list every conditional behavior
+      def get(self, key, default, *, refresh, ttl, raise_if_missing):
+          """Return value for key. If refresh, reload first. If ttl set, use it
+          unless the entry is pinned. If raise_if_missing, raise unless default
+          is given, in which case return default except when refresh failed..."""
+    example_right: |
+      def get(self, key):
+          """Return the cached value for key, loading it on a miss."""
+          ...
+    fixes:
+      - Use the difficulty of writing the comment as a redesign trigger
+      - Reduce special cases (define them out of existence) so the description shortens
+      - Split overloaded methods so each has a one-sentence purpose
+    related_flags:
+      - hard_to_pick_name
+      - excessive_configuration
+      - unnecessary_error_path_complexity
+
 # Summary heuristic: if you see 3+ red flags in a module, it's a good refactoring candidate
+# Coverage: all 14 named red flags from "A Philosophy of Software Design" are represented
+# (book_red_flag: true), plus 4 derived/symptom checks (book_red_flag: false).
