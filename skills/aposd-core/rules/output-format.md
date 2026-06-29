@@ -1,170 +1,269 @@
 # Output Format: APoSD Review Commands
 
-This document defines the structure and content of outputs from `/aposd-pr-review` and `/aposd-refactor-plan`.
+This document defines the structure and content of outputs from `/aposd-review`,
+`/aposd-pr-review`, and `/aposd-refactor-plan`.
+
+All three reports share the enrichment defined in `rules/scoring.md`:
+
+- **Design Health Score** (0–100) + severity count distribution + explicit scope
+- **Diagnostic chain** per finding: Symptom → Root cause → Consequence → Fix, with
+  the `red-flags.yaml` id, the APoSD chapter citation, and Confidence / Effort tags
+- **Priority matrix** (Impact × Effort) naming the single first action
+- **Mermaid dependency graph** for module-level scopes
+- **Before / After** code block for every blocking finding and refactor phase
+
+Read `rules/scoring.md` before producing any of these reports. Do not regress to a
+flat bullet list of red flags.
+
+---
 
 ## `/aposd-pr-review` Output Format
 
-**Purpose**: Review a PR diff through the lens of APoSD red flags and safety rules. No code changes; assessment only.
+**Purpose**: Review a PR diff through the lens of APoSD red flags and safety
+rules. No code changes; assessment only.
 
-**Input**: Current git diff (staged and unstaged changes)
+**Input**: A diff — current branch vs main, a named file, or a GitHub PR.
 
 **Output Structure**:
 
 ```
 # APoSD Code Review
 
+## Design Health: <score> / 100 (<grade>, <preset> preset)
+
+| Severity | 件数 | 該当 red-flag |
+|----------|-----|--------------|
+| 🔴 High   | N   | ...           |
+| 🟡 Medium | N   | ...           |
+| 🟢 Low    | N   | ...           |
+
+スコープ: base=main, <files> ファイル変更 (+<added> / −<removed> 行)
+この差分が新たに増やした赤旗: N 件 / 元から存在した赤旗: N 件
+
 ## Summary
-[1-3 bullet points: what the PR changes, at high level]
+[1–3 bullets: what the PR changes at a high level, and its net design effect]
 
-## Complexity Assessment
-[Red flags detected, ranked by severity and effort]
+## 着手順位（Impact × Effort）
+[2×2 matrix per scoring.md §5, with the single top action named]
 
-### Blocking Issues
-[Issues that should delay or block this PR]
+## Blocking Issues
+[Findings that should delay or block this PR — diagnostic chain per scoring.md §3]
 
-**Issue 1: [Red Flag Name]**
-- File: `path/to/file.py:line_range`
-- Problem: [Brief description of the red flag]
-- Risk: [Why this matters now; what breaks if we ignore it]
-- Suggestion: [Small, reviewable fix for this PR, or defer to follow-up]
+**Shallow Module** — `path/to/file.py:line_range`
+[red-flag: shallow_module · 02-deep-modules.md · Confidence: High · Effort: S]
+- Symptom: ...
+- Root cause: ...
+- Consequence: ...
+- Fix: ...
+
+Before / After:
+[minimal code block per scoring.md §7]
 
 [Repeat for each blocking issue]
 
-### Non-Blocking Observations
-[Issues worth noting but don't block this PR]
+## Non-Blocking Observations
+[Worth noting but don't block this PR — same chain, Fix line says "follow-up"]
 
-**Observation 1: [Red Flag Name]**
-- File: `path/to/file.py:line_range`
-- Pattern: [What you see]
-- Follow-up: [This should be addressed in a separate PR; link to refactor plan if exists]
+**Vague Naming** — `path/to/file.py:line_range`
+[red-flag: vague_naming · 04-naming-obviousness.md · Confidence: Medium · Effort: S]
+- Symptom: ...
+- Root cause: ...
+- Consequence: ...
+- Fix: follow-up PR; link to refactor plan if one exists
 
 [Repeat for each observation]
 
-### Safety Check
-- [ ] Does this PR introduce broad rewrites? (multiple layers touched, 10+ files changed)
-- [ ] Does this PR defer hard design decisions via new config/flags?
-- [ ] Does this PR recommend DDD/Clean Architecture without root cause?
-- [ ] Does this PR create new abstractions without deepening existing modules?
-
-[Pass/fail for each]
+## Safety Check
+- [ ] Broad rewrite? (multiple layers touched, 10+ files)
+- [ ] Defers hard decisions via new config/flags?
+- [ ] Recommends DDD/Clean Architecture without root cause?
+- [ ] Creates new abstractions instead of deepening existing modules?
+[Pass/fail + one-line reason for each]
 
 ## Recommendation
 [Approve / Request Changes / Approve with Follow-Up]
+```
+
+### Recommendation meanings
+
+- **Approve** — design quality maintained or improved; no red flag requires this PR to act.
+- **Request Changes** — a blocking red flag must be fixed here; risk too high to defer; fix is small enough for this PR.
+- **Approve with Follow-Up** — PR is sound; noted red flags don't block; suggest a follow-up PR or refactor plan.
 
 ---
 
-### Recommendation: Approve
-- The PR improves or maintains design quality
-- No red flags that require this PR to address
-- Design decisions are sound
+## `/aposd-review` Output Format
 
-### Recommendation: Request Changes
-- Red flags must be fixed in this PR
-- Risk is too high to defer
-- The fix is small enough for this PR
+**Purpose**: Audit a repository, directory, or file set for accumulated design
+debt. Track design health over time, not a single PR.
 
-### Recommendation: Approve with Follow-Up
-- PR is sound; approve as-is
-- Some red flags noted but don't block this PR
-- Suggest a follow-up PR or refactoring plan
-```
-
-## `/aposd-refactor-plan` Output Format
-
-**Purpose**: Plan a refactoring WITHOUT changing code. Identify the root problem, propose a safe, incremental path forward.
-
-**Input**: A module or feature area to refactor
+**Input**: Repo root (no args), one or more directories, or one or more files.
 
 **Output Structure**:
 
 ```
-# APoSD Refactoring Plan
+# APoSD Design Audit: <scope label>
 
-## Target
-- File(s): [List of files affected]
-- Scope: [What aspect is the problem?]
+## Design Health: <score> / 100 (<grade>, <preset> preset)
 
-## Root Cause Analysis
+| Severity | 件数 | 該当 red-flag |
+|----------|-----|--------------|
+| 🔴 High   | N   | ...           |
+| 🟡 Medium | N   | ...           |
+| 🟢 Low    | N   | ...           |
 
-### Primary Red Flag: [Name]
-- Evidence: [What symptom(s) point to this red flag]
-- Impact: [How does this harm maintainability]
-- Why it happened: [Design decision or lack thereof that led here]
+スコープ: <files> ファイル / <lines> 行をスキャン（除外: ...）
 
-### Secondary Red Flags
-[If multiple red flags, list them and their relationships]
+## Summary
+[Codebase-wide design state in 2–4 lines: where the debt concentrates]
 
-## Current State
+## Module Map
+[Mermaid dependency graph per scoring.md §6 — red/yellow color-coded modules.
+ Skip if scope is a single file.]
 
-### What Works Well
-[Aspects of the current design to preserve]
+## 着手順位（Impact × Effort）
+[2×2 matrix per scoring.md §5, with the single top action named]
 
-### What's Broken
-[Specific friction points; e.g., "PR to add feature X required changes in 5 files"]
+## Findings by Module
+[Group findings under the module/directory they live in, worst module first.
+ Each finding uses the diagnostic chain per scoring.md §3.]
 
-## Proposed Path
+### `src/services/` — 🔴 3 findings
+**Shallow Module** — `user_service.py:12-40`
+[red-flag: shallow_module · 02-deep-modules.md · Confidence: High · Effort: S]
+- Symptom: ...
+- Root cause: ...
+- Consequence: ...
+- Fix: ...
 
-### Phase 1: [Scope Name] (Estimated PR count: 1-2)
-**Goal**: [Specific, measurable change]
-**Changes**:
-- Move [logic] from `file_a` to `file_b` (reason: information hiding)
-- Rename [method] to clarify intent
-- Extract [special case] into separate method
-**Test Impact**: [Which tests must update; why]
-**Risk**: [Will this break existing callers? No/Low/Medium with mitigation]
-**Before/After**: [Quick code example showing the improvement]
+Before / After:
+[minimal code block — blocking-equivalent findings only]
 
-### Phase 2: [Next scope] (Estimated PR count: 1-2)
-[Same structure]
+[Repeat per finding, then per module]
 
-[Repeat for each logical phase]
+## Cross-Module Concerns
+[Issues that span files — information leakage, change amplification, layering.
+ Reference the edges drawn in the Module Map.]
 
-## Alternatives Considered
+## Safety Check
+- 大幅な設計変更の必要性: Yes / No（理由）
+- Broad rewrite の兆候: Yes / No（理由）
+- DDD/Clean Architecture への移行根拠: 有 / 無（理由）
 
-### Alternative A: [Different approach]
-- Why not: [Why this isn't preferred]
-
-### Alternative B: [Another approach]
-- Why not: [Why this isn't preferred]
-
-## Safety Checklist
-- [ ] Plan deepens existing modules (not create new ones)
-- [ ] No new layers or abstractions added without justification
-- [ ] Each phase is one PR-sized chunk
-- [ ] Phases don't require merging in a specific order (independent)
-- [ ] Plan reduces change amplification, not increases it
-- [ ] Callers' code becomes simpler, not more complex
-- [ ] No config/flags added to defer hard decisions
-
-## Merge Order & Dependencies
-[If phases have dependencies, describe order; if independent, say so]
-
-## Success Metrics
-[How will you know this refactor helped? e.g., "new features add 1 file per feature, not 3+"]
-
-## Estimated Effort
-[Overall scope: small / medium / large; reasoning]
+## Recommendation
+[Prioritized next steps. If the worst module needs more than one PR, route it to
+ /aposd-refactor-plan rather than proposing an inline fix.]
+```
 
 ---
 
-## Example: Red Flag Template for Comments
+## `/aposd-refactor-plan` Output Format
 
-When citing red flags in either output format:
+**Purpose**: Plan a refactoring WITHOUT changing code. Identify the root problem,
+propose a safe, incremental path.
+
+**Input**: A module or feature area to refactor.
+
+**Output Structure**:
 
 ```
-**[Red Flag Name]** — [file:line or file range]
-- Symptom: [Observable evidence]
-- Impact: [Why this matters]
-- Fix: [Proposed change, or defer to follow-up]
+# APoSD Refactoring Plan: <module/feature>
+
+## Target
+- File(s): [files affected]
+- Scope: [what aspect is the problem]
+- Design Health (current): <score> / 100 (<grade>) — projected after plan: <score>
+
+## Root Cause Analysis
+
+### Primary Red Flag: <name>
+[red-flag: <id> · <chapter file> · Confidence: <level>]
+- Symptom: [observable evidence]
+- Root cause: [the design decision or omission]
+- Consequence: [how it harms maintainability; which red flags it triggers]
+
+### Secondary Red Flags
+[Related flags and how they connect to the primary one]
+
+## Current State
+
+### Architecture (before)
+[Mermaid graph per scoring.md §6 showing today's shape and the bad edges]
+
+### What Works Well
+[Aspects to preserve]
+
+### What's Broken
+[Specific friction points, e.g. "adding field X required changes in 5 files"]
+
+## Proposed Path
+
+### Phase 1: <scope name> (PR count: 1–2)
+**Goal**: [specific, measurable change]
+**Health delta**: <current> → <projected> after this phase
+**Changes**:
+- Move [logic] from `file_a` to `file_b` (reason: information hiding)
+- Rename [method] to clarify intent
+**Test Impact**: [which tests update; why]
+**Risk**: [breaks existing callers? No/Low/Medium + mitigation]
+**Before / After**: [minimal code block per scoring.md §7]
+
+### Phase 2: <next scope> (PR count: 1–2)
+[Same structure]
+
+### Architecture (after)
+[Mermaid graph showing the target shape, bad edges removed]
+
+## Alternatives Considered
+### Alternative A: <approach>
+- Why not: [reason]
+### Alternative B: <approach>
+- Why not: [reason]
+
+## Safety Checklist
+- [ ] Deepens existing modules (not create new ones)
+- [ ] No new layers/abstractions without justification
+- [ ] Each phase is one PR-sized chunk
+- [ ] Phases independent, or order is stated
+- [ ] Reduces change amplification
+- [ ] Callers' code becomes simpler
+- [ ] No config/flags added to defer hard decisions
+
+## Merge Order & Dependencies
+[Dependencies between phases, or "independent — any order"]
+
+## Success Metrics
+[How you'll know it helped — e.g. "new features add 1 file, not 3+"; Health Score rises]
+
+## Estimated Effort
+[Overall scope: small / medium / large (PR count), with reasoning. No durations.]
 ```
 
-Example:
+---
+
+## Finding template (used in all three commands)
+
+Every finding, regardless of command, follows the diagnostic chain from
+`rules/scoring.md` §3:
+
+```
+**<Red Flag Name>** — `<file:line or module>`
+[red-flag: <id> · <chapter file> · Confidence: <High/Medium/Low> · Effort: <S/M/L>]
+- Symptom: [observable evidence]
+- Root cause: [the design decision or omission that produced it]
+- Consequence: [maintainability cost; which follow-up red flag it triggers]
+- Fix: [smallest reviewable change, or explicit defer-to-follow-up]
+```
+
+Worked example:
+
 ```
 **Information Leakage** — `service.py:45-60`
-- Symptom: Caller imports `models.User` and checks `user.status == UserStatus.PENDING`
-- Impact: Change to User status enum ripples to all callers
-- Fix: Define a check method in the repository: `user.is_pending()` 
-  Then callers use `is_pending()` and don't need the enum
+[red-flag: information_leakage · 02-deep-modules.md · Confidence: High · Effort: S]
+- Symptom: 呼び出し側が models.User と UserStatus.PENDING を直接 import している
+- Root cause: User の状態判定をリポジトリに置かず、呼び出し側に enum を露出した
+- Consequence: status enum を変えると全呼び出し側に波及（change_amplification を誘発）
+- Fix: repository に is_pending() を定義し、呼び出し側は enum を知らずに済むようにする
 ```
 
 ---
@@ -173,39 +272,38 @@ Example:
 
 ### For PR Review Comments
 
-**In the PR**: Use appropriate template from `templates/` directory.
+When writing comments to post in a PR, use the matching template from `templates/`:
 
 - `templates/pr-comments-en.md` for English-speaking teams
 - `templates/pr-comments-ja.md` for Japanese-speaking teams
 
-Each template includes:
-- Blocking issue template
-- Observation template
-- Suggestion template
-- Question template
-
-Follow the template structure exactly so PR authors understand the severity and scope.
+The diagnostic chain (Symptom → Root cause → Consequence → Fix) maps onto the
+状況 / 影響 / 提案 structure in those templates; keep the red-flag id and chapter
+citation in the comment so the author can read the source chapter.
 
 ### For Refactoring Plans
 
-Same format regardless of language; proposal is technical and language-agnostic.
+Same format regardless of language; the proposal is technical and language-agnostic.
 
 ---
 
 ## Tone & Phrasing
 
 ### DO
-- Be specific: "This information leakage causes a 5-file change when User schema updates"
+- Be specific: "This information leakage causes a 5-file change when the User schema updates"
 - Be actionable: "Move the status check into the repository"
-- Assume good intent: "This pattern is common, but here's a better way"
-- Respect constraints: "This isn't blocking this PR, but worth a follow-up"
+- Assume good intent: "This pattern is common, but here's a deeper interface"
+- Respect constraints: "Not blocking this PR, but worth a follow-up"
+- Report scores and grades plainly, as a direction signal
 
 ### DON'T
 - Use vague language: "This is bad design"
 - Demand perfection: "This needs a complete rewrite"
 - Ignore context: "Never use X" (without root cause)
-- Overwhelm: 20 separate issues in one review
+- Overwhelm: 20 separate issues in one review (cap at the top findings)
 - Be prescriptive without reason: "Refactor this to use a strategy pattern"
+- Dramatize the score or use sensational framing
+- State durations for effort (use PR count, never hours/days/weeks)
 
 ---
 
@@ -213,17 +311,17 @@ Same format regardless of language; proposal is technical and language-agnostic.
 
 ### Blocking (must fix in this PR)
 - Introduces new red flags not in the original code
-- High risk with low effort (easy fix, big impact)
+- High Impact with Low Effort (easy fix, big payoff)
 - Violates safety rules (broad rewrite, new layers, deferred decisions)
 - Existing tests would fail or be misleading
 
 ### Non-Blocking (address later)
 - Pre-existing red flags not made worse
-- Would require broad changes (>1 PR)
+- Would require broad changes (>1 PR / Effort L)
 - Requires architectural decisions that should be separate
-- Low friction; refactoring can happen on its own timeline
+- Low friction; can refactor on its own timeline
 
 ### Follow-Up (optional, but recommended)
-- Suggest a refactoring plan or a separate PR
-- Include context: "Here's why this matters, and here's a small starting point"
+- Suggest a refactor plan or separate PR
+- Include context: why it matters, and a small starting point
 - Don't make it urgent; let the team prioritize

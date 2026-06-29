@@ -334,6 +334,7 @@ Watch for these warning signs of complexity:
 - **Pass-Through Method**: Just calls another method with same signature
 - **Repetition**: Same code duplicated multiple times
 - **Special-General Mixture**: Special-purpose code not separated
+- **Conjoined Methods**: Can't understand one method without reading another
 - **Comment Repeats Code**: Comment obvious from code itself
 - **Implementation Documentation Contaminates Interface**: Interface describes how, not what
 - **Vague Name**: Name too generic to convey meaning
@@ -459,7 +460,9 @@ Core principles to follow:
 - Book: "A Philosophy of Software Design" by John Ousterhout
 - CS 190 at Stanford University (where these ideas were developed)
 - Related concepts: information hiding (David Parnas), separation of concerns
-- Clean Code, SOLID principles (complementary approaches)
+- Clean Code (Robert Martin), SOLID principles — overlapping in goals but with
+  notable disagreements the 2nd edition calls out (e.g. method length and the role
+  of comments); APoSD favors deeper methods over many tiny ones
 
 ## License Note
 

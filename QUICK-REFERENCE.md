@@ -1,15 +1,19 @@
 # Quick Reference Card
 
-## Red Flags (Signs of Complexity)
+## Red Flags (the 14 from the book)
 
 🚩 **Shallow Module** - Interface not much simpler than implementation  
 🚩 **Information Leakage** - Design decision reflected in multiple modules  
 🚩 **Temporal Decomposition** - Structure based on execution order  
+🚩 **Overexposure** - API forces awareness of rarely-used features  
 🚩 **Pass-Through Method** - Just calls another method with same signature  
 🚩 **Repetition** - Same code in multiple places  
 🚩 **Special-General Mixture** - Special cases not separated  
+🚩 **Conjoined Methods** - Can't understand one method without another  
 🚩 **Comment Repeats Code** - Comment obvious from code  
+🚩 **Implementation Documentation Contaminates Interface** - Interface docs describe how, not what  
 🚩 **Vague Name** - Name too generic to convey meaning  
+🚩 **Hard to Pick Name** - Naming difficulty signals unclear design  
 🚩 **Hard to Describe** - Long documentation required  
 🚩 **Nonobvious Code** - Can't understand with quick read  
 

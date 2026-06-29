@@ -43,20 +43,31 @@ This skill is NOT a tutorial or summary of APoSD. Instead, it gives Claude Code:
 
 ### Red Flags
 
-This skill watches for these patterns (see `rules/red-flags.yaml` for full definitions):
+This skill watches for these patterns (see `rules/red-flags.yaml` for full definitions).
+
+The 14 named red flags from the book (`book_red_flag: true`):
 
 - **Shallow module** — interface complex relative to implementation
 - **Information leakage** — callers know too much about internal structure
-- **Change amplification** — one logical change scattered across modules
-- **Vague naming** — intent unclear from function/class names
-- **Special-case mixture** — general logic mixed with special cases for specific callers
-- **Excessive configuration** — too many flags/options replacing hard decisions
-- **Comments that repeat code** — documentation that restates syntax instead of explaining why
-- **Unnecessary error-path complexity** — exception handling scattered instead of defined out of existence
-- **Pass-through abstractions** — layer that does nothing but forward calls
 - **Temporal decomposition** — code organized by execution order rather than responsibility
+- **Overexposure** — API forces callers to learn rarely-used features to do common things
+- **Pass-through method** — layer that does nothing but forward calls
 - **Repetition** — same logic duplicated across multiple places
+- **Special-general mixture** — general logic mixed with special cases for specific callers
+- **Conjoined methods** — two methods you can't understand independently
+- **Comments that repeat code** — documentation that restates syntax instead of explaining why
+- **Implementation documentation contaminates interface** — interface docs leak implementation detail
+- **Vague name** — intent unclear from function/class names
+- **Hard to pick name** — naming difficulty signals an unclean abstraction
+- **Hard to describe** — a hard-to-write interface comment signals an over-complex thing
 - **Nonobvious code** — implementation requires deep reading to understand
+
+Plus derived detection checks this skill adds (`book_red_flag: false`) — the first two are the book's *complexity symptoms* from Ch 2, not red flags:
+
+- **Change amplification** — one logical change scattered across modules (Ch 2 symptom)
+- **Cognitive load** — too much to hold in mind to use a module (Ch 2 symptom)
+- **Excessive configuration** — too many flags/options replacing hard decisions
+- **Unnecessary error-path complexity** — exception handling scattered instead of defined out of existence
 
 ## What This Skill Does NOT Do
 
@@ -73,6 +84,19 @@ This skill watches for these patterns (see `rules/red-flags.yaml` for full defin
 - Propose small, safe changes that don't break existing callers
 - Flag if a "fix" would trigger broad rewrites
 - Distinguish "block this PR" from "follow up later"
+
+## Report Enrichment (all commands)
+
+Every report this skill produces is quantified, prioritized, and traceable — not a
+flat bullet list. Read `rules/scoring.md` before writing any report and apply:
+
+1. **Design Health Score** (0–100, deterministic) + severity count distribution + explicit scope
+2. **Diagnostic chain** per finding: Symptom → Root cause → Consequence → Fix, tagged with the `red-flags.yaml` id, the APoSD chapter it cites, and Confidence / Effort
+3. **Priority matrix** (Impact × Effort) naming the single first action
+4. **Mermaid dependency graph** for module-level scopes, color-coding red-flag modules
+5. **Before / After** code block for every blocking finding and refactor phase
+
+Effort is always PR count (S / M / L), never a time estimate.
 
 ## Usage
 
@@ -147,6 +171,7 @@ Then move to business logic if patterns remain.
 
 - `rules/red-flags.yaml` — red flag reference, symptoms, fixes
 - `rules/safety-rules.md` — broad rewrite prevention checklist
+- `rules/scoring.md` — Health Score, diagnostic chain, priority matrix, chapter-citation map, Mermaid graph (read before producing any report)
 - `rules/output-format.md` — command output structure
 - `templates/pr-comments-ja.md` — Japanese PR comment templates
 - `templates/pr-comments-en.md` — English PR comment templates

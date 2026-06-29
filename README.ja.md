@@ -212,20 +212,29 @@ cp <このリポジトリ>/commands/aposd-*.md .claude/commands/
 
 ## Red Flag リファレンス
 
-複雑性の警告サイン：
+複雑性の警告サイン。原典「A Philosophy of Software Design」の 14 個の Red flag：
 
 - **Shallow Module** — インタフェースが実装ほどシンプルでない
 - **Information Leakage** — 呼び出し側が内部の決定を知る
-- **Change Amplification** — 1 つの論理的変更が多数の場所に波及
-- **Vague Naming** — 意図が関数名から不明
-- **Special-Case Mixture** — 一般的ロジックと特殊ケースが混在
-- **Excessive Configuration** — 難しい判断を defer する flag/option が多すぎる
-- **Comments Repeat Code** — コメントが code の構文を再述
-- **Unnecessary Error-Path Complexity** — try-catch が散乱する代わりに定義で排除すべき
-- **Pass-Through Abstraction** — call を forward するだけのレイアー
 - **Temporal Decomposition** — 実行順序に基づく構造分割
+- **Overexposure** — 共通操作のために稀な機能の学習を呼び出し側に強いる
+- **Pass-Through Method** — call を forward するだけのレイアー
 - **Repetition** — 同じロジックが複数箇所に重複
+- **Special-General Mixture** — 一般的ロジックと特殊ケースが混在
+- **Conjoined Methods** — 片方のメソッドを他方なしに理解できない
+- **Comments Repeat Code** — コメントが code の構文を再述
+- **Implementation Documentation Contaminates Interface** — インタフェース文書が実装詳細を漏らす
+- **Vague Name** — 意図が関数名から不明
+- **Hard to Pick Name** — 命名の難しさが不明確な設計を示す
+- **Hard to Describe** — 簡潔で完全なコメントが書けないのは設計問題の兆候
 - **Nonobvious Code** — 理解に深い読み込みが必要
+
+加えて、本スキルが追加する派生チェック（原典の Red flag リストには無い。最初の 2 つは Ch 2 の「複雑性の症状」）：
+
+- **Change Amplification** — 1 つの論理的変更が多数の場所に波及（Ch 2 の症状）
+- **Cognitive Load** — モジュール利用時に頭に保持すべき事項が多すぎる（Ch 2 の症状）
+- **Excessive Configuration** — 難しい判断を defer する flag/option が多すぎる
+- **Unnecessary Error-Path Complexity** — try-catch が散乱する代わりに定義で排除すべき
 
 ---
 
@@ -233,7 +242,7 @@ cp <このリポジトリ>/commands/aposd-*.md .claude/commands/
 
 完全なリファレンス：
 
-- `skills/aposd-core/rules/red-flags.yaml` — 12 個の Red flag、症状、質問、修正方法
+- `skills/aposd-core/rules/red-flags.yaml` — 18 個（原典の Red flag 14 + 派生チェック 4）の症状、質問、修正方法
 - `skills/aposd-core/profiles/python.md` — Python 言語別パターン
 - `skills/aposd-core/profiles/typescript.md` — TypeScript 言語別パターン
 
@@ -368,7 +377,9 @@ A: この skill は設計/建築。`/code-review` はコード品質・スタイ
 - 原著: "A Philosophy of Software Design" by John Ousterhout（Yaknyam Press）
 - Stanford CS 190（この考え方が開発された講座）
 - 関連概念：情報隠蔽（David Parnas）、関心の分離
-- 補完アプローチ：Clean Code、SOLID principles
+- Clean Code（Robert Martin）、SOLID principles — 目的は重なるが第2版が明確な相違点
+  を挙げている（メソッドの長さ、コメントの役割など）。APoSD は細かいメソッドの多用よりも
+  深いメソッドを支持する
 
 ---
 
